@@ -3,13 +3,14 @@
  * @Author: cw
  * @LastEditors: cw
  * @Date: 2019-04-03 09:39:30
- * @LastEditTime: 2019-04-17 17:54:57
+ * @LastEditTime: 2019-04-30 11:20:57
  */
 let sSelectedNetwork=null;
 let sNetSelectedNetwork=null;
 let sSelectedNation=null;
 let sSelectedApp=null;
 let sSelectedMode=null;
+let sSelectedStMode=null;
 let tCurSelectedData = null;
 let tNetworkConfig = null;
 let tLast30DaysAllData = {};
@@ -39,7 +40,7 @@ let T_COL_ATTRI_NAME ={
 }
 
 let T_NETWORKS=[
-    "UnityAds","Vungle"
+    "UnityAds","Vungle","Admob","Facebook","Applovin","Mopub"
 ]
 
 $('#networkTabs').w2tabs({
@@ -103,7 +104,7 @@ $('#statisticsTabs').w2tabs({
     active     : 'tab1',
     tabs    : [
         { id: 'st_all',         caption: '回收总览', style: 'border: 1px solid gray' },
-        // { id: 'st_nation',      caption: '国家收入', style: 'border: 1px solid gray' },
+        { id: 'st_nation',      caption: '国家收入', style: 'border: 1px solid gray' },
         // { id: 'st_platform',    caption: '平台汇总', style: 'border: 1px solid gray' },
         // { id: 'st_network',     caption: '渠道汇总', style: 'border: 1px solid gray' },
     ],
@@ -112,6 +113,7 @@ $('#statisticsTabs').w2tabs({
         for(let oTab of tTabs){
             if(oTab.id==event.target){
                 oTab.style = 'border:2px solid red'
+                sSelectedStMode=oTab.id;
                 if(oTab.id == "st_all"){
                     DoDataFilterAndFillToRevenueGrid();
                 }else if(oTab.id=="st_nation"){
@@ -342,6 +344,11 @@ $('#sidebar').w2sidebar({
         if(tToken[0]=="data"){
             sSelectedMode=tToken[0];
             sSelectedApp=tToken[1];
+            if(sSelectedStMode=="st_nation"){
+                DoDataFilterNationAndFillToRevenueGrid();
+            }else if(sSelectedStMode=="st_all"){
+                DoDataFilterAndFillToRevenueGrid();
+            }
             DoDataFilterAndFillToNetworkGrid();
             UpdateShowedNetworkData();
         }
@@ -737,6 +744,7 @@ function DoDataFilterAndFillToRevenueGrid(){
         }
     }
     oGrid.render();   
+    oGrid.sort('recid', 'asc');
 }
 
 function GetDateAdsTypeData(sAdsType,tDateData){
@@ -776,6 +784,57 @@ function GetDateAdsTypeData(sAdsType,tDateData){
                         }
                     }
                     tAllRevData[sPlatFormStr] = tRevenueData;
+                }
+            }
+        }
+    }
+    return tAllRevData;
+}
+
+function GetDateAdsNationData(tDateData)
+{
+    let sFilterApp = sSelectedApp;
+    if(!sFilterApp){
+        return;
+    }
+    let tAppConf = tNetworkConfig[sFilterApp];
+    if(!tAppConf){
+        return;
+    }
+    let tAllRevData = {}
+    for(let sNation of T_NATION){
+        tAllRevData[sNation] = {Android:{REQUEST:0,AVALABLE:0,COMPLETES:0,VIEWS:0,REVENUE:0,CLICKED:0},
+                                IOS:{REQUEST:0,AVALABLE:0,COMPLETES:0,VIEWS:0,REVENUE:0,CLICKED:0}}
+    }
+    for(let sAdsType of T_NETWORKS){
+        let tAppNetworkConfig = tAppConf[sAdsType];
+        if(tAppNetworkConfig){
+            let tPlatformRevData = {Android:{REQUEST:0,AVALABLE:0,COMPLETES:0,VIEWS:0,REVENUE:0,CLICKED:0},
+                                    IOS:{REQUEST:0,AVALABLE:0,COMPLETES:0,VIEWS:0,REVENUE:0,CLICKED:0}}
+            for(let sAppId in tDateData[sAdsType]){
+                let tAppData = tDateData[sAdsType][sAppId];
+                let sPlatFormStr = null;
+                if(sAppId.toString() == tAppNetworkConfig["Android"]){
+                    sPlatFormStr="Android"
+                }else if(sAppId.toString() == tAppNetworkConfig["IOS"]){
+                    sPlatFormStr="IOS";
+                }
+                if(sPlatFormStr){
+                    for(let sNationStr in tAppData){
+                        if(tAllRevData[sNationStr] && tAllRevData[sNationStr][sPlatFormStr]){
+                            let tRevenueData = tAllRevData[sNationStr][sPlatFormStr];
+                            let tNationData = tAppData[sNationStr];
+                            for(let sAdUnit in tNationData){
+                                let tAdUnitData = tNationData[sAdUnit];
+                                tRevenueData.REQUEST += parseInt(tAdUnitData.REQUEST);
+                                tRevenueData.AVALABLE += parseInt(tAdUnitData.AVALABLE);
+                                tRevenueData.COMPLETES += parseInt(tAdUnitData.COMPLETES);
+                                tRevenueData.CLICKED += parseInt(tAdUnitData.CLICKED);
+                                tRevenueData.VIEWS += parseInt(tAdUnitData.VIEWS);
+                                tRevenueData.REVENUE += parseFloat(tAdUnitData.REVENUE);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -945,10 +1004,43 @@ function DoDataFilterNationAndFillToRevenueGrid(){
     [
         { field: 'recid', caption: '日期', size: '90px', sortable: true, attr: 'align=center', frozen:true },
         { field: 'weekday', caption: '星期', size: '50px', sortable: true, resizable: true, frozen:true  },
+        { field: 'total_Android', caption: '总GP', size: '60px', sortable: true, resizable: true, frozen:true  },
+        { field: 'total_IOS', caption: '总IOS', size: '60px', sortable: true, resizable: true, frozen:true  },
     ];
     for(let sNation of T_NATION){
-        oGrid.columns.push({ field: 'recid', caption: '日期', size: '90px', sortable: true, attr: 'align=center', frozen:true });
+        let nSize = T_NATION_NAME[sNation].length;
+        let sSize = "65px"
+        if(nSize==4){
+            sSize="80px"
+        }
+        oGrid.columns.push({ field: sNation+"_Android", caption: T_NATION_NAME[sNation]+"GP", size: sSize, sortable: true,style:"border: 2px solid #880088;border-bottom-style: none;border-top-style: none;border-right-style: none;" });
+        oGrid.columns.push({ field: sNation+"_IOS", caption: T_NATION_NAME[sNation]+"IOS", size: sSize, sortable: true,style:"border: 2px solid #880088;border-bottom-style: none;border-top-style: none;border-left-style: none;"  });
     }
+    for(let sDate in tLast30DaysAllData){
+        let tDateData = tLast30DaysAllData[sDate];
+        if(tDateData){
+            let tLineData = {}
+            tLineData.recid = sDate;
+            let nWeekDay=moment(sDate,"YYYY-MM-DD").weekday();
+            tLineData.weekday = T_WEEK_DAY[nWeekDay];
+            oGrid.records.push(tLineData);
+            let tRevenueData = GetDateAdsNationData(tDateData)
+            if(tRevenueData){
+                let nTotalGP = 0
+                let nTotalIOS =0
+                for(let sNation of T_NATION){
+                    tLineData[sNation+"_Android"] = parseFloat(tRevenueData[sNation].Android.REVENUE).toFixed(2);
+                    tLineData[sNation+"_IOS"] = parseFloat(tRevenueData[sNation].IOS.REVENUE).toFixed(2);
+                    nTotalGP+=tRevenueData[sNation].Android.REVENUE;
+                    nTotalIOS+=tRevenueData[sNation].IOS.REVENUE;
+                }
+                tLineData["total_Android"]=parseFloat(nTotalGP).toFixed(2);
+                tLineData["total_IOS"]=parseFloat(nTotalIOS).toFixed(2);
+            }
+        }
+    }
+    oGrid.render();   
+    oGrid.sort('recid', 'asc');
 }
 
 function DoRequestAsync(tOptions,tBody,pCallback){
