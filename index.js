@@ -3,7 +3,7 @@
  * @Author: cw
  * @LastEditors: cw
  * @Date: 2019-04-03 17:43:25
- * @LastEditTime: 2019-04-24 16:41:44
+ * @LastEditTime: 2019-05-06 15:13:28
  */
 let express = require('express');
 let Session = require('express-session');
@@ -11,6 +11,7 @@ let request = require('request');
 var bodyParser = require('body-parser');
 let moment = require('moment');
 let DataMgr = require('./DataMgr.js');
+let DbHelper = require('./DbHelper.js')
 const {google} = require('googleapis'); 
 var morgan = require('morgan');
 let adsenseApi = google.adsense("v1.4");
@@ -856,6 +857,8 @@ fs.readFile("./config.json",'utf-8', function(err, data) {
     T_CONFIG=JSON.parse(data);
     app.listen(PORT,()=>{
         DataMgr.Instance.Init(T_CONFIG);
+        DataMgr.Instance._oDbHelper=DbHelper.Instance;
+        DataMgr.Instance._oDbHelper.Init(T_CONFIG);
         DataMgr.Instance.Start();
     });
 });

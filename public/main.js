@@ -3,7 +3,7 @@
  * @Author: cw
  * @LastEditors: cw
  * @Date: 2019-04-03 09:39:30
- * @LastEditTime: 2019-04-30 11:20:57
+ * @LastEditTime: 2019-05-06 14:33:15
  */
 let sSelectedNetwork=null;
 let sNetSelectedNetwork=null;
@@ -27,12 +27,12 @@ let T_WEEK_DAY=
 }
 let T_NATION=
 [
-    "TW","HK","CN","US","GB","JP","SG","AU","CA","MY"    
+    "TW","HK","CN","US","GB","JP","SG","AU","CA","MY","PH","ID","TH" 
 ]
 
 let T_NATION_NAME =
 {
-    TW:"台湾",HK:"香港",CN:"大陆",US:"美国",GB:"英国",JP:"日本",SG:"新加坡",AU:"澳大利亚",CA:"加拿大",MY:"马来西亚"    
+    TW:"台湾",HK:"香港",CN:"大陆",US:"美国",GB:"英国",JP:"日本",SG:"新加坡",AU:"澳大利亚",CA:"加拿大",MY:"马来西亚",PH:"菲律宾",ID:"印尼",TH:"泰国"    
 }
 
 let T_COL_ATTRI_NAME ={
@@ -397,7 +397,7 @@ function DoQueryNetworkData(){
 
 async function DoQueryLast30DaysData(){
     tLast30DaysAllData={};
-    let oDate = moment().subtract(30,"day");
+    let oDate = moment();
     bGet30DaysDataOk=false;
     let nCount = 0;
     let tOptions = 
@@ -410,7 +410,7 @@ async function DoQueryLast30DaysData(){
         }
     };
     for(let i=0;i<30;i++){
-        let sDate = oDate.add(1,"day").format("YYYY-MM-DD");
+        let sDate = oDate.subtract(1,"day").format("YYYY-MM-DD");
         DoRequestAsync(tOptions,{Date:sDate},(tData)=>{
             if(tData.status=="success"){
                 tLast30DaysAllData[sDate]=tData.data;

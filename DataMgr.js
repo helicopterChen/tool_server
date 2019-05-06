@@ -3,11 +3,12 @@
  * @Author: cw
  * @LastEditors: cw
  * @Date: 2019-04-08 16:30:36
- * @LastEditTime: 2019-04-28 14:33:34
+ * @LastEditTime: 2019-05-06 15:21:06
  */
 let moment = require('moment');
 let fs = require('fs');
 let DataFetcher = require('./DataFetcher.js');
+let DbHelper = require('./DbHelper.js')
 const STR_FORMAT = require('string-format');
 let tNetworks = ["UnityAds","Vungle","Mopub","Applovin","Admob","Facebook","Mintegral"];
 function DataMgr() {
@@ -17,6 +18,7 @@ function DataMgr() {
     this._bGoogleAuth=false;
     this._tDataFetchedOk=false;
     this._oTimer=null;
+    this._oDbHelper=null;
 }
 
 DataMgr.prototype.Init=function(tConfig){
@@ -72,32 +74,26 @@ DataMgr.prototype.GetDateAllNetworkData=async function(sDate,pCallback){
     pCallback(tData);
 }
 
-DataMgr.prototype.GetDateHalfNetworkData=async function(sDate,pCallback){
-    let tData = {}
-    for(let sNetworkName of tNetworks){
-        if(sNetworkName!="Mopub"){
-            tData[sNetworkName] = await GetNetworkDateDataAsync(sNetworkName,sDate);
-        }
-    }
-    pCallback(tData);
+// DataMgr.prototype.GetDateHalfNetworkData=async function(sDate,pCallback){
+//     let tData = {}
+//     for(let sNetworkName of tNetworks){
+//         if(sNetworkName!="Mopub"){
+//             tData[sNetworkName] = await GetNetworkDateDataAsync(sNetworkName,sDate);
+//         }
+//     }
+//     pCallback(tData);
+// }
+
+DataMgr.prototype.GetDateHalfNetworkData=function(sData,pCallback){
+    // self._oDbHelper.GetDateData(sData,pCallback);
 }
 
 DataMgr.prototype.GetDateSavedAllData = function(sDate,pCallback){
-    let sDateDataFileName = "./saved_data/"+ sDate + "/All_Data.json";
-    if(fs.existsSync(sDateDataFileName)){
-        fs.readFile(sDateDataFileName,(err,data)=>{
-            pCallback(JSON.parse(data));
-        })
-    }else{
-        let sDateHalfDataFileName = "./saved_data/"+ sDate + "/Half_Data.json";
-        if(fs.existsSync(sDateHalfDataFileName)){
-            fs.readFile(sDateHalfDataFileName,(err,data)=>{
-                pCallback(JSON.parse(data));
-            })
-        }else{
-            pCallback()
+    this._oDbHelper.GetDateData(sDate,(tData)=>{
+        if(pCallback){
+            pCallback(tData);
         }
-    }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetech=function(){
@@ -105,9 +101,6 @@ DataMgr.prototype.DoCheckAndFetech=function(){
     let self = this;
     for(let i=0;i<15;++i){
         let sDate = oBeginTime.subtract(1,"day").format("YYYY-MM-DD");
-        if(!fs.existsSync("./saved_data/"+sDate)){
-            fs.mkdirSync("./saved_data/"+sDate);
-        }
         setTimeout(() => {
             self.DoCheckAndFetchUnity(sDate);
             self.DoCheckAndFetchVungle(sDate);
@@ -121,55 +114,62 @@ DataMgr.prototype.DoCheckAndFetech=function(){
 };
 
 DataMgr.prototype.DoCheckAndFetchUnity=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/UnityAds.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestUnityData(sDate,this._T_CONF.Keys.UnityAds,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"UnityAds",(result)=>{
+        if(!result){
+            DataFetcher.RequestUnityData(sDate,this._T_CONF.Keys.UnityAds,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"UnityAds",tData);
+            });
+        }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetchVungle=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Vungle.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestVungleData(sDate,this._T_CONF.Keys.Vungle,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"Vungle",(result)=>{
+        if(!result){
+            DataFetcher.RequestVungleData(sDate,this._T_CONF.Keys.Vungle,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"Vungle",tData);
+            });
+        }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetchApplovin=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Applovin.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestApplovinData(sDate,this._T_CONF.Keys.Applovin,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"Applovin",(result)=>{
+        if(!result){
+            DataFetcher.RequestApplovinData(sDate,this._T_CONF.Keys.Applovin,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"Applovin",tData);
+            });
+        }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetchMopub=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Mopub.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestMopubData(sDate,this._T_CONF.Keys.MopubReportKey,this._T_CONF.Keys.MopubApiKey,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"Mopub",(result)=>{
+        if(!result){
+            DataFetcher.RequestMopubData(sDate,this._T_CONF.Keys.MopubReportKey,this._T_CONF.Keys.MopubApiKey,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"Mopub",tData);
+            });
+        }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetchAdmob=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Admob.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestAdmobData(sDate,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"Admob",(result)=>{
+        if(!result){
+            DataFetcher.RequestAdmobData(sDate,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"Admob",tData);
+            });
+        }
+    });
 } 
 
 DataMgr.prototype.DoCheckAndFetchFacebook=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Facebook.json";
-    let tFacebookDateData = {}
-    let tDataQueryFinished={};
-    if(!fs.existsSync(sFileName)){
+    this._oDbHelper.CheckHaveData(sDate,"Facebook",(result)=>{
+        if(result){
+            return;
+        }
+        let tFacebookDateData = {}
+        let tDataQueryFinished={};
         let nCount = 0;
         for(let sAppName in this._T_CONF.Keys.Facebook){
             setTimeout( async()=>{ 
@@ -187,21 +187,22 @@ DataMgr.prototype.DoCheckAndFetchFacebook=function(sDate){
                                 return;
                             }
                         }
-                        this.SaveDataToFile(sFileName,tFacebookDateData,sDate);
+                        this._oDbHelper.SaveDateTypeData(sData,"Facebook",tFacebookDateData);
                     });    
                 }   
             },nCount*200);
         }
-    }
+    });
 }
 
 DataMgr.prototype.DoCheckAndFetchMintegral=function(sDate){
-    let sFileName = "./saved_data/"+ sDate + "/Mintegral.json";
-    if(!fs.existsSync(sFileName)){
-        DataFetcher.RequestMintegralData(sDate,this._T_CONF.Keys.MintegralKey,this._T_CONF.Keys.MintegralSecret,(tData)=>{
-            this.SaveDataToFile(sFileName,tData,sDate);
-        });   
-    }
+    this._oDbHelper.CheckHaveData(sDate,"Mintegral",(result)=>{
+        if(!result){
+            DataFetcher.RequestMintegralData(sDate,this._T_CONF.Keys.MintegralKey,this._T_CONF.Keys.MintegralSecret,(tData)=>{
+                this._oDbHelper.SaveDateTypeData(sDate,"Mintegral",tData);
+            });
+        }
+    });
 } 
 
 DataMgr.prototype.DoCheckAndSaveDateData=function(sDate){
@@ -262,35 +263,10 @@ DataMgr.prototype.SaveDataToFile = function(sFileName,tData,sDate){
 }
 
 DataMgr.prototype.refetchSevenDay = function(){
-    let oBeginTime = moment();
-    for(let i=0;i<7;++i){
-        let sDate = oBeginTime.subtract(1,"day").format("YYYY-MM-DD");
-        let sDirName = "./saved_data/"+sDate
-        if(fs.existsSync(sDirName)){
-            for(let sNetworkName of tNetworks){
-                let sFileName = "./saved_data/"+sDate+"/"+sNetworkName+".json";
-                if(fs.existsSync(sFileName)){
-                    fs.unlinkSync(sFileName);
-                }
-            }
-            let sHalfData =  "./saved_data/"+sDate+"/Half_Data.json";
-            if(fs.existsSync(sHalfData)){
-                fs.unlinkSync(sHalfData);
-            }
-            let sAllData =  "./saved_data/"+sDate+"/All_Data.json";
-            if(fs.existsSync(sAllData)){
-                fs.unlinkSync(sAllData);
-            }
-            fs.rmdirSync(sDirName);
-        }
-    }
     let self = this;
     let oFetchBeginTime = moment();
     for(let i=0;i<7;++i){
         let sDate = oFetchBeginTime.subtract(1,"day").format("YYYY-MM-DD");
-        if(!fs.existsSync("./saved_data/"+sDate)){
-            fs.mkdirSync("./saved_data/"+sDate);
-        }
         setTimeout(() => {
             self.DoCheckAndFetchUnity(sDate);
             self.DoCheckAndFetchVungle(sDate);
